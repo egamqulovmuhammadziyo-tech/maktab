@@ -3,7 +3,7 @@
   publish = "dist"
 
 [build.environment]
-  VITE_API_URL = "https://your-backend-url.com"
+  VITE_API_URL = "https://maktab-17.onrender.com"
 
 [[redirects]]
   from = "/*"
