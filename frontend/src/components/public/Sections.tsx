@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useInView, AnimatePresence } from "framer-motion";
+import { HiX, HiChevronLeft, HiChevronRight } from "react-icons/hi";
+import { useCountUp } from "../../lib/useCountUp";
 import {
   teachersApi,
   newsApi,
@@ -19,6 +21,41 @@ import type {
 } from "../../types";
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
+function StatCard({
+  stat,
+  index,
+}: {
+  stat: { value: string; label: string; icon: string; color: string };
+  index: number;
+}) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-40px" });
+  const display = useCountUp(stat.value, 1400, inView);
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.1 }}
+      className="bg-white rounded-3xl p-6 shadow-sm border border-base-300 text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+    >
+      <div
+        className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${stat.color} text-2xl shadow-lg mb-4`}
+      >
+        {stat.icon}
+      </div>
+      <div className="font-heading font-black text-4xl text-base-content tabular-nums">
+        {display}
+      </div>
+      <div className="text-base-content/60 font-medium mt-1">
+        {stat.label}
+      </div>
+    </motion.div>
+  );
+}
+
 export function StatsSection() {
   const [s, setS] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -60,26 +97,7 @@ export function StatsSection() {
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-white rounded-3xl p-6 shadow-sm border border-base-300 text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-            >
-              <div
-                className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${stat.color} text-2xl shadow-lg mb-4`}
-              >
-                {stat.icon}
-              </div>
-              <div className="font-heading font-black text-4xl text-base-content">
-                {stat.value}
-              </div>
-              <div className="text-base-content/60 font-medium mt-1">
-                {stat.label}
-              </div>
-            </motion.div>
+            <StatCard key={stat.label} stat={stat} index={i} />
           ))}
         </div>
       </div>
@@ -453,13 +471,24 @@ export function AchievementsSection() {
 // ── GALLERY ───────────────────────────────────────────────────────────────────
 export function GallerySection() {
   const [images, setImages] = useState<GalleryImage[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   useEffect(() => {
     galleryApi
       .getAll()
       .then((r) => setImages(r.data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (activeIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActiveIndex(null);
+      if (e.key === "ArrowRight") setActiveIndex((i) => (i === null ? i : (i + 1) % images.length));
+      if (e.key === "ArrowLeft") setActiveIndex((i) => (i === null ? i : (i - 1 + images.length) % images.length));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeIndex, images.length]);
 
   if (images.length === 0) return null;
 
@@ -477,41 +506,96 @@ export function GallerySection() {
             </span>
           </h2>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+
+        {/* Masonry: CSS columns bilan tabiiy balandlikdagi rasmlar */}
+        <div className="columns-2 sm:columns-3 lg:columns-4 gap-4 [column-fill:balance]">
           {images.map((img, i) => (
             <motion.div
               key={img.id}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.05 }}
-              onClick={() => setSelected(img.image_url)}
-              className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group"
+              transition={{ delay: (i % 8) * 0.05 }}
+              onClick={() => setActiveIndex(i)}
+              className="relative mb-4 rounded-2xl overflow-hidden cursor-pointer group break-inside-avoid"
             >
               <img
                 src={img.image_url}
                 alt={img.title || ""}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                loading="lazy"
+                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                {img.title && (
+                  <span className="text-white text-sm font-semibold drop-shadow">{img.title}</span>
+                )}
+              </div>
             </motion.div>
           ))}
         </div>
       </div>
 
       {/* Lightbox */}
-      {selected && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setSelected(null)}
-        >
-          <img
-            src={selected}
-            alt=""
-            className="max-w-full max-h-full rounded-2xl shadow-2xl"
-          />
-        </div>
-      )}
+      <AnimatePresence>
+        {activeIndex !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setActiveIndex(null)}
+          >
+            <button
+              onClick={() => setActiveIndex(null)}
+              className="absolute top-5 right-5 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+              aria-label="Yopish"
+            >
+              <HiX className="w-6 h-6" />
+            </button>
+
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveIndex((i) => (i === null ? i : (i - 1 + images.length) % images.length));
+                  }}
+                  className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+                  aria-label="Oldingi"
+                >
+                  <HiChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveIndex((i) => (i === null ? i : (i + 1) % images.length));
+                  }}
+                  className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+                  aria-label="Keyingi"
+                >
+                  <HiChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+
+            <motion.img
+              key={activeIndex}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.2 }}
+              src={images[activeIndex].image_url}
+              alt={images[activeIndex].title || ""}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl"
+            />
+            {images[activeIndex].title && (
+              <p className="absolute bottom-6 text-white/80 text-sm font-medium">
+                {images[activeIndex].title}
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
@@ -797,7 +881,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="flex  items-center justify-center gap-x-80 pt-6 border-t border-gray-700/30 mt-6 text-xs text-gray-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-white/10 mt-10 text-xs text-white/40">
           <p>© 2026 17-maktab. Barcha huquqlar himoyalangan.</p>
 
           {/* Admin panelga olib o'tuvchi chiroyli kichik tugma */}

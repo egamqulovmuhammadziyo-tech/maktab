@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import axios from 'axios';
 import { announcementsApi, achievementsApi, galleryApi } from '../../api';
+import { fileToDataUrl } from '../../lib/localdb';
 import { CrudPage } from '../../components/admin/CrudPage';
 import type { Announcement, Achievement, GalleryImage } from '../../types';
 
@@ -153,26 +153,19 @@ function GalleryForm({ item, onClose, onSave }: { item: GalleryImage | null; onC
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append("file", file);
+    if (file.size > 3 * 1024 * 1024) {
+      alert("Rasm hajmi 3MB dan kichik bo'lishi kerak (sayt backendsiz, rasm brauzerda saqlanadi).");
+      return;
+    }
 
     try {
       setIsUploading(true);
-      const token = localStorage.getItem('token');
-      
-      // Vite proxy ishlagani uchun to'g'ridan-to'g'ri /api/ga yuboramiz. 
-      // Bu domen o'zgarganda ham universal ishlayveradi.
-      const response = await axios.post("/api/gallery/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          ...(token && { "Authorization": `Bearer ${token}` })
-        }
-      });
-
-      setValue('image_url', response.data.url);
+      // Backend yo'q — rasm to'g'ridan-to'g'ri base64 ko'rinishida saqlanadi.
+      const dataUrl = await fileToDataUrl(file);
+      setValue('image_url', dataUrl);
     } catch (err) {
-      console.error("Rasm yuklashda xato:", err);
-      alert("Rasmni serverga yuklab bo'lmadi!");
+      console.error("Rasmni o'qishda xato:", err);
+      alert("Rasmni yuklab bo'lmadi!");
     } finally {
       setIsUploading(false);
     }

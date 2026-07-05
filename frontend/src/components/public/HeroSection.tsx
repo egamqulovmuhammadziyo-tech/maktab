@@ -2,15 +2,26 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { settingsApi } from "../../api";
+import { useCountUp } from "../../lib/useCountUp";
 
-interface Settings {
-  hero_title: string;
-  hero_subtitle: string;
-  school_name: string;
-  students_count: string;
-  teachers_count: string;
-  experience_years: string;
+function HeroStat({ value, label, delay }: { value: string; label: string; delay: number }) {
+  const display = useCountUp(value, 1500, true);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay }}
+      className="text-center"
+    >
+      <div className="font-heading font-black text-3xl sm:text-4xl text-white tabular-nums">
+        {display}
+      </div>
+      <div className="text-white/50 text-sm mt-1 font-medium">{label}</div>
+    </motion.div>
+  );
 }
+
+type Settings = Record<string, string>;
 
 export default function HeroSection() {
   const [s, setS] = useState<Settings>({
@@ -92,27 +103,15 @@ export default function HeroSection() {
           </motion.div>
 
           {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="mt-16 grid grid-cols-3 gap-6"
-          >
+          <div className="mt-16 grid grid-cols-3 gap-6">
             {[
               { value: s.students_count, label: "O'quvchi" },
               { value: s.teachers_count, label: "O'qituvchi" },
               { value: s.experience_years, label: "Yillik tajriba" },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="font-heading font-black text-3xl sm:text-4xl text-white">
-                  {stat.value}
-                </div>
-                <div className="text-white/50 text-sm mt-1 font-medium">
-                  {stat.label}
-                </div>
-              </div>
+            ].map((stat, i) => (
+              <HeroStat key={stat.label} value={stat.value} label={stat.label} delay={0.3 + i * 0.1} />
             ))}
-          </motion.div>
+          </div>
         </div>
       </div>
 
